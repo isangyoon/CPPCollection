@@ -1,0 +1,15 @@
+sudo: false
+language: cpp
+compiler:
+  - gcc
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+    packages:
+      - g++-7
+install:
+  - "[ $CXX = g++ ] && export CXX=g++-7 || true"
+script:
+  - make
+  - make test
