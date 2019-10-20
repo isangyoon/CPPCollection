@@ -11,7 +11,7 @@ class queue
 public:
     queue() = default;
     queue(queue<T> const &other) = delete;
-    queue &operator=(const &queue<T> other) = delete;
+    queue &operator=(queue<T> const &other) = delete;
 
     void push(T value)
     {
