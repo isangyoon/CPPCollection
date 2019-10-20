@@ -10,17 +10,13 @@ class queue
 {
 public:
     queue() = default;
-    queue(queue const &other)
-    {
-        std::lock_guard<std::mutex> lock{mutex};
-        data = other.data;
-    }
+    queue(queue const &) = delete;
     queue &operator=(const &queue) = delete;
 
     void push(T value)
     {
         std::lock_guard<std::mutex> lock{mutex};
-        data.push(value);
+        data.push(std::move(value));
         cv.notify_one();
     }
 
@@ -29,7 +25,7 @@ public:
         std::lock_guard<std::mutex> lock{mutex};
         cv.wait(lock, [this] { return !data.empty(); });
 
-        value = data.front();
+        value = std::move(data.front());
         data.pop();
     }
 
@@ -52,7 +48,7 @@ public:
             return false;
         }
 
-        value = data.front();
+        value = std::move(data.front());
         data.pop();
 
         return true;
@@ -76,7 +72,14 @@ public:
     {
         std::lock_guard<std::mutex> lock{mutex};
 
-        return queue_.empty();
+        return data.empty();
+    }
+
+    std::size_t size() const
+    {
+        std::lock_guard<std::mutex> lock{mutex};
+
+        return data.size();
     }
 
 private:
