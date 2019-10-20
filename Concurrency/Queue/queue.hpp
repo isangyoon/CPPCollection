@@ -10,8 +10,8 @@ class queue
 {
 public:
     queue() = default;
-    queue(queue<T> const &) = delete;
-    queue &operator=(const &queue<T>) = delete;
+    queue(queue<T> const &other) = delete;
+    queue &operator=(const &queue<T> other) = delete;
 
     void push(T value)
     {
