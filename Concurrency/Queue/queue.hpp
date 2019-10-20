@@ -1,47 +1,75 @@
 #pragma once
 
+#include <condition_variable>
+#include <mutex>
 #include <queue>
 #include <thread>
-#include <mutex>
-#include <condition_variable>
 
 template <typename T>
 class queue
 {
 public:
     queue() = default;
-    queue(const queue &) = delete;
+    queue(queue const &other)
+    {
+        std::lock_guard<std::mutex> lock{mutex};
+        data = other.data;
+    }
     queue &operator=(const &queue) = delete;
 
-    T pop()
+    void push(T value)
     {
-        std::unique_lock<std::mutex> mlock{mutex_};
-        while (queue_.empty())
-        {
-            cv.wait(mlock);
-        }
-        auto value = std::move(queue_.front());
-        queue_.pop();
+        std::lock_guard<std::mutex> lock{mutex};
+        data.push(value);
+        cv.notify_one();
+    }
+
+    void pop(T &value)
+    {
+        std::lock_guard<std::mutex> lock{mutex};
+        cv.wait(lock, [this] { return !data.empty(); });
+
+        value = data.front();
+        data.pop();
+    }
+
+    std::shared_ptr<T> pop()
+    {
+        std::lock_guard<std::mutex> lock{mutex};
+        cv.wait(lock, [this] { return !data.empty(); });
+
+        std::shared_ptr<std::mutex> value{std::make_shared<T>(data.front())};
+        data.pop();
 
         return value;
     }
 
-    void pop(T &item)
-    {
-        std::unique_lock<std::mutex> mlock{mutex_};
-        while (queue_.empty())
-        {
-            cv.wait(mlock);
-        }
-        item = queue_.front();
-        queue_.pop();
-    }
-
-    void push(const T &item)
+    bool try_pop(T &value)
     {
         std::lock_guard<std::mutex> lock{mutex};
-        queue_.push(item);
-        cv.notify_one();
+        if (true == data.empty())
+        {
+            return false;
+        }
+
+        value = data.front();
+        data.pop();
+
+        return true;
+    }
+
+    std::shared_ptr<T> try_pop()
+    {
+        std::lock_guard<std::mutex> lock{mutex};
+        if (true == data.empty())
+        {
+            return std::shared_ptr<T>{};
+        }
+
+        std::shared_ptr<std::mutex> value{std::make_shared<T>(data.front())};
+        data.pop();
+
+        return value;
     }
 
     bool empty() const
@@ -52,7 +80,7 @@ public:
     }
 
 private:
-    std::queue<T> queue_;
+    std::queue<T> data;
     mutable std::mutex mutex;
     std::condition_variable cv;
 };
