@@ -10,19 +10,20 @@ class queue
 {
 public:
     queue() = default;
-    queue(const Queue &) = delete;
-    queue &operator=(const queue &) = delete;
+    queue(const queue &) = delete;
+    queue &operator=(const &queue) = delete;
 
     T pop()
     {
         std::unique_lock<std::mutex> mlock{mutex_};
         while (queue_.empty())
         {
-            cond_.wait(mlock);
+            cv.wait(mlock);
         }
-        auto val = queue_.front();
+        auto value = std::move(queue_.front());
         queue_.pop();
-        return val;
+
+        return value;
     }
 
     void pop(T &item)
@@ -30,7 +31,7 @@ public:
         std::unique_lock<std::mutex> mlock{mutex_};
         while (queue_.empty())
         {
-            cond_.wait(mlock);
+            cv.wait(mlock);
         }
         item = queue_.front();
         queue_.pop();
@@ -38,14 +39,20 @@ public:
 
     void push(const T &item)
     {
-        std::unique_lock<std::mutex> mlock{mutex_};
+        std::lock_guard<std::mutex> lock{mutex};
         queue_.push(item);
-        mlock.unlock();
-        cond_.notify_one();
+        cv.notify_one();
+    }
+
+    bool empty() const
+    {
+        std::lock_guard<std::mutex> lock{mutex};
+
+        return queue_.empty();
     }
 
 private:
     std::queue<T> queue_;
-    std::mutex mutex_;
-    std::condition_variable cond_;
+    std::mutex mutex;
+    std::condition_variable cv;
 };
